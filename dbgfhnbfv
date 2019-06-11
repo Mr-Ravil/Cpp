@@ -1,0 +1,155 @@
+#pragma once
+#include <vector>
+#include <random>
+#include <iterator>
+#include <ctime>
+#include <algorithm>
+
+
+template <typename T> class randomized_queue {
+private:
+	std::vector <T> queue;
+
+	size_t _size = 0;
+
+	std::mt19937 random_generator;
+
+	size_t get_random_position(const size_t n) {
+		std::uniform_int_distribution<size_t> gen(0, n);
+		return gen(random_generator);
+	};
+
+	class iterator {
+	private:
+		size_t index;
+
+		randomized_queue * iter_queue;
+
+		std::vector<size_t> perm;
+
+		typename std::vector<size_t>::iterator it;
+
+	public:
+		using iterator_category = std::bidirectional_iterator_tag;
+		using value_type = T;
+		using difference_type = ptrdiff_t;
+		using pointer = T*;
+		using reference = T&;
+
+		explicit iterator(size_t const & index, randomized_queue * iter_queue) : index(index), iter_queue(iter_queue) {
+
+			perm.resize(iter_queue->size());
+
+			for (size_t i = 0; i < perm.size(); i++) {
+				perm[i] = i;
+			}
+
+			std::shuffle(perm.begin(), perm.end(), iter_queue->random_generator);
+
+			if (index == 0)
+				it = perm.begin();
+			else
+				it = perm.end();
+		};
+
+		iterator(const iterator& iter) {
+			index = iter.index;
+			iter_queue = iter.iter_queue;
+			perm = iter.perm;
+			it = iter.it;
+		}
+
+		T& operator*() const {
+			return iter_queue->queue[*it];
+		}
+
+		bool operator==(const iterator & iter) const {
+			return (index == iter.index && iter_queue->queue == iter.iter_queue->queue &&
+				(perm == iter.perm || (index == iter_queue->size() && iter.index == iter.iter_queue->size())));
+		}
+
+		bool operator!=(const iterator & iter) const {
+			return !(index == iter.index && iter_queue->queue == iter.iter_queue->queue &&
+				(perm == iter.perm || (index == iter_queue->size() && iter.index == iter.iter_queue->size())));
+		}
+
+		iterator & operator=(const iterator & iter) {
+			if (this != &iter) {
+				index = iter.index;
+				iter_queue = iter.iter_queue;
+				perm = iter.perm;
+				it = iter.it;
+			}
+			return *this;
+		}
+
+		iterator & operator++(int) {
+			auto iter = *this;
+			index++;
+			it++;
+			return iter;
+		}
+		
+		iterator & operator--(int) {
+			auto iter = *this;
+			index--;
+			it--;
+			return iter;
+		}
+
+		iterator & operator++() {
+			++index;
+			++it;
+			return *this;	
+		}
+
+		iterator & operator--() {
+			--index;
+			--it;
+			return *this;
+		}
+		
+	};
+
+public:
+	randomized_queue() {
+		std::random_device device;
+		random_generator.seed(device());
+	}
+
+	randomized_queue(randomized_queue const & r_queue) : _size(r_queue.size()), queue(r_queue.queue) {}
+	
+	bool empty() {
+		return _size == 0;
+	}
+
+	size_t size() {
+		return _size;
+	}
+
+	iterator begin() {
+		return iterator(0, this);
+	}
+
+	iterator end() {
+		return iterator(size(), this);
+	}
+
+	void enqueue(T const & value) {
+		queue.push_back(value);
+		_size++;
+	}
+
+	const T& sample() {
+		return queue[get_random_position(_size - 1)];
+	}
+
+	T dequeue() {
+		_size--;
+		std::swap(queue[get_random_position(_size)], queue[_size]);
+		T value = queue[_size];
+		queue.pop_back();
+		return value;
+	}
+};
+
